@@ -1,6 +1,7 @@
 from matplotlib import pyplot as plt
 from matplotlib.widgets import Button, Slider, TextBox
 import numpy as np
+from skimage.feature import graycomatrix, graycoprops
 
 import config
 
@@ -178,7 +179,6 @@ def measure_cloud_cover(cloud_mask: np.ndarray) -> float:
 
     return cloud_cover_ratio
 
-
 def apply_cloud_mask(radiance_data: np.ndarray, cloud_mask: np.ndarray) -> np.ndarray:
     """
     Applies a binary cloud mask to a hyperspectral datacube.
@@ -207,3 +207,72 @@ def apply_cloud_mask(radiance_data: np.ndarray, cloud_mask: np.ndarray) -> np.nd
                 masked_data[row, col, :] = 0
 
     return masked_data
+
+def generate_texture_image(
+    radiance_data: np.ndarray, band: int, window_size: int,
+    levels: int, offset: int, angle: float
+) -> np.ndarray:
+    """
+    Generates a texture image based on 2nd-order varince using the Grey-Level
+    Co-Occurance Matrix (GLCM) for a given hyperspectral band.
+
+    This function computes the local texture variance by sliding a window across
+    the image, calculating the GLCM within each window, and calculating the
+    variance to highlight texture patterns, such as cloud edges.
+
+    Parameters
+    ----------
+    radiance_data : np.ndarray
+        A hyperspectral datacube (3D numpy array w/ dimensions rows, columns,
+        bands).
+    band : int
+        The index of the spectral band to base the texture image off of.
+    window_size : int
+        Size of the square window.
+    levels : int
+        Number of gray levels to convert the band data into before GLCM calculation.
+    offset : int
+        Pixel distance to consider when computing GLCM.
+    angle : float
+        Angle in radians that defines the direction of neighbour comparison.
+
+    Returns
+    -------
+    np.ndarray
+        A 2D array (same spatial dimensions) where each pixel contains the local
+        GLCM-based variance value computed from its window.
+    """
+    num_rows, num_cols, _, = radiance_data.shape
+    data_slice = radiance_data[:, :, band]
+    texture_image = np.zeros((num_rows, num_cols))
+
+    # Convert image to integer values since computing the GLCM requires discrete input
+    data_slice_norm = (data_slice - data_slice.min()) / (data_slice.max() - data_slice.min()) # [0, 1] 
+    data_slice_int = (data_slice_norm * (levels - 1)).astype(np.uint8)
+
+    # Pad image so that a window can be centred at every pixel in original image
+    pad_width = window_size // 2
+    data_slice_int_padded = np.pad(data_slice_int, pad_width, mode='reflect')
+
+    # Iterate only through pixels in original image
+    for row in range(pad_width, num_rows + pad_width):
+        row_start = row - pad_width
+        row_end = row + pad_width + 1
+
+        for col in range(pad_width, num_cols + pad_width):
+            col_start = col - pad_width
+            col_end = col + pad_width + 1
+            window = data_slice_int_padded[row_start:row_end, col_start:col_end]
+
+            glcm = graycomatrix(
+                window,
+                distances=[offset],
+                angles=[angle],
+                levels=levels,
+                symmetric=True,
+                normed=True
+            )
+
+            texture_image[row - pad_width, col - pad_width] = graycoprops(glcm, prop='variance')[0, 0]
+
+    return texture_image
