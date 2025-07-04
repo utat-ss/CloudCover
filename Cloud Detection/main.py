@@ -30,6 +30,20 @@ if __name__ == '__main__':
         )
     print(f'Step 3 done, total cloud cover: {(cloud_cover_ratio * 100):.2f}%')
 
+    # Step 4 - Create texture image (to be used for rule-based object classifcation)
+    texture_image = generate_texture_image(radiance_data, selected_band, config.GLCM_WINDOW_SIZE,
+                                           config.GLCM_LEVELS, config.GLCM_OFFSET,
+                                           config.GLCM_ANGLE)
+    if SAVE_DATA:
+        np.savez_compressed(f'{OUTPUT_FOLDER}texture_image', texture = texture_image)
+    print('Step 4 done, texture image generated')
+
+    # Step 5 - Perform cloud margin classification w/ texture image
+    cloud_margin_mask = create_cloud_margin_mask(texture_image, cloud_mask)
+    if SAVE_DATA:
+        np.savez_compressed(f'{OUTPUT_FOLDER}cloud_margin_mask', mask = cloud_margin_mask)
+    print('Step 5 done, cloud margin mask created')
+
     # Optional Step - Apply cloud mask to original datacube
     masked_radiance_data = apply_cloud_mask(radiance_data, cloud_mask)
     if SAVE_DATA:
