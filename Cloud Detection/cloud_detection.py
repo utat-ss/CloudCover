@@ -1,7 +1,10 @@
 from matplotlib import pyplot as plt
 from matplotlib.widgets import Button, Slider, TextBox
 import numpy as np
+from scipy.ndimage import binary_closing, binary_dilation
 from skimage.feature import graycomatrix, graycoprops
+from skimage.filters import threshold_otsu
+from skimage.measure import label, regionprops
 
 import config
 
@@ -276,3 +279,56 @@ def generate_texture_image(
             texture_image[row - pad_width, col - pad_width] = graycoprops(glcm, prop='variance')[0, 0]
 
     return texture_image
+
+def create_cloud_margin_mask(
+    texture_image: np.ndarray, initial_cloud_mask: np.ndarray,
+    min_area: int = 5, dilation_iteration: int = 2
+) -> np.ndarray:
+    """
+    Creates a binary mask of cloud margins using local texture variations and
+    an existing cloud mask.
+
+    This function uses rule-based object classification to detect cloud margins
+    from a texture image (e.g. derived from GLCM variance). Pixels with value
+    1 are identified as cloud margins, and 0 as clear areas.
+
+    Parameters
+    ----------
+    texture_image : np.ndarray
+        A 2D texture image derived from GLCM variance.
+    initial_cloud_mask : np.ndarray
+        An initial cloud mask created from thresholding radiance.
+    min_area : int
+        Minimum area (in pixels) for an object to be retained in the margin mask.
+    dilation_iteration : int
+        Number of iterations to dilate the initial cloud mask.
+
+    Returns
+    -------
+    np.ndarray
+        A 2D binary cloud margin mask with the same dimensions as the texture image.
+    """
+    margin_mask = np.zeros(texture_image.shape, dtype=np.uint8)
+
+    # Threshold texture image to identify areas of high local variation
+    threshold_value = threshold_otsu(texture_image)
+    margin_candidates = texture_image > threshold_value
+
+    # Label connected regions
+    labeled_regions = label(margin_candidates)
+    regions = regionprops(labeled_regions)
+
+    # Filter regions by area
+    area_filtered_mask = np.zeros_like(margin_mask)
+    for region in regions:
+        if region.area >= min_area:
+            area_filtered_mask[labeled_regions == region.label] = 1
+
+    # Filter regions by spatial proximity
+    dilated_cloud_mask = binary_dilation(initial_cloud_mask, iterations=dilation_iteration)
+    proximity_filtered_mask = area_filtered_mask & dilated_cloud_mask
+
+    # Morphological cleaning
+    margin_mask = binary_closing(proximity_filtered_mask)
+
+    return margin_mask
