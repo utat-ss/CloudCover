@@ -46,6 +46,8 @@ if __name__ == '__main__':
     # Step 6 - Merge cloud and cloud margin masks
     final_cloud_mask = cloud_mask | cloud_margin_mask
     cloud_cover_ratio = measure_cloud_cover(cloud_mask)
+    if SAVE_DATA:
+        np.savez_compressed(f'{OUTPUT_FOLDER}final_cloud_mask', mask = final_cloud_mask)
     print(f'Step 6 done, total cloud cover: {(cloud_cover_ratio * 100):.2f}%')
 
     # Optional Step - Apply cloud mask to original datacube
