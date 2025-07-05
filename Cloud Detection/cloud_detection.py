@@ -1,4 +1,5 @@
 from matplotlib import pyplot as plt
+from matplotlib.patches import Circle
 from matplotlib.widgets import Button, Slider, TextBox
 import numpy as np
 from scipy.ndimage import binary_closing, binary_dilation
@@ -7,6 +8,7 @@ from skimage.filters import threshold_otsu
 from skimage.measure import label, regionprops
 
 import config
+import utility
 
 def select_spectral_band(radiance_data: np.ndarray) -> int:
     """
@@ -332,3 +334,201 @@ def create_cloud_margin_mask(
     margin_mask = binary_closing(proximity_filtered_mask)
 
     return margin_mask
+
+def perform_manual_refinement(radiance_data: np.ndarray, cloud_mask: np.ndarray) -> np.ndarray:
+    """
+    Launches an interactive tool for manually refining a cloud mask.
+
+    This function allows the user to inspect and edit a binary cloud mask by
+    painting directly on the mask. Cloud pixels can be added or removed using
+    a brush tool directly on the masked image.
+
+    Parameters
+    ----------
+    radiance_data : np.ndarray
+        A hyperspectral datacube (3D numpy array w/ dimensions (rows, columns,
+        bands)).
+    cloud_mask : np.ndarray
+        A 2D binary mask (rows, cols) where cloud pixels are marked as 1.
+
+    Returns
+    -------
+    np.ndarray
+        A 2D binary array representing the refined cloud mask after manual editing.
+    """
+    is_drawing = False
+    paint_mode = False
+    paint_value = 1
+    brush_size = 1
+
+    band_index = 0
+    edited_mask = cloud_mask.copy()
+    height, width = radiance_data[:, :, band_index].shape
+
+    # ========== Set Up Figure and Axes ==========
+    fig, ax = plt.subplots(ncols=3, sharex=True, sharey=True)
+    fig.text(
+        0.5, 0.95,
+        'Enable painting to add/remove clouds on the masked (right) image. Adjust brush and band settings below.',
+        ha='center', va='top', color='gray', fontsize=10
+    )
+
+    original_im = ax[0].imshow(radiance_data[:, :, band_index], cmap='gray')
+    ax[0].set_title(f'Original Datacube, Band: {band_index + 1}')
+
+    mask_im = ax[1].imshow(edited_mask, cmap='gray')
+    ax[1].set_title(f'Cloud Mask')
+
+    masked_band = utility.apply_cloud_mask_to_band(radiance_data, band_index, edited_mask)
+    masked_im = ax[2].imshow(masked_band, cmap='gray')
+    ax[2].set_title(f'Masked Datacube, Band: {band_index + 1}')
+
+    # ========== Set Up UI Elements ==========
+    # -- Sliders --
+    ax_band_slider = plt.axes([0.2, 0.28, 0.6, 0.03])
+    band_slider = Slider(ax_band_slider, 'Displayed Band ', 1, config.NUM_BANDS, valinit=band_index + 1, valstep=1)
+
+    ax_brush_size_slider = plt.axes([0.3, 0.12, 0.4, 0.03])
+    brush_size_slider = Slider(ax_brush_size_slider, 'Brush Size ', 1, 10, valinit=1, valstep=1)
+
+    # -- Buttons --
+    ax_toggle_paint_button = plt.axes([0.125, 0.2, 0.2, 0.03])
+    toggle_paint_button = Button(ax_toggle_paint_button, 'Turn Painting On')
+
+    ax_add_button = plt.axes([0.375, 0.2, 0.2, 0.03])
+    add_button = Button(ax_add_button, 'Add Cloud')
+
+    ax_erase_button = plt.axes([0.625, 0.2, 0.2, 0.03])
+    erase_button = Button(ax_erase_button, 'Erase Cloud')
+
+    # ========== Set Up Brush Preview ==========
+    brush_preview = Circle((0, 0), radius=brush_size, edgecolor='red', facecolor='none', linewidth=1.5, linestyle='--')
+    ax[2].add_patch(brush_preview)
+    brush_preview.set_visible(False)
+
+    # ========== Slider and UI Callback Functions ==========
+    def update_band_slider(val):
+        """Updates images and index when band slider is moved."""
+        nonlocal band_index
+        band_index = int(band_slider.val) - 1
+
+        # Update original band
+        new_data_slice = radiance_data[:, :, band_index]
+        original_im.set_data(new_data_slice)
+        original_im.set_clim(vmin=0, vmax=np.max(new_data_slice))
+        ax[0].set_title(f'Original Datacube, Band: {band_index + 1}')
+
+        # Update masked band
+        new_masked_data_slice = utility.apply_cloud_mask_to_band(radiance_data, band_index, edited_mask)
+        masked_im.set_data(new_masked_data_slice)
+        masked_im.set_clim(vmin=0, vmax=np.max(new_masked_data_slice))
+        ax[2].set_title(f'Masked Datacube, Band: {band_index + 1}')
+
+        fig.canvas.draw_idle()
+
+    def update_brush_size_slider(val):
+        """Updates brush size when brush size slider is moved."""
+        nonlocal brush_size
+        brush_size = int(brush_size_slider.val)
+        brush_preview.set_radius(brush_size)
+
+    def update_mask():
+        """Updates cloud mask and masked datacube when painting."""
+        # Update cloud mask
+        mask_im.set_data(edited_mask)
+
+        # Update masked data
+        new_masked_data_slice = utility.apply_cloud_mask_to_band(radiance_data, band_index, edited_mask)
+        masked_im.set_data(new_masked_data_slice)
+        masked_im.set_clim(vmin=0, vmax=np.max(new_masked_data_slice))
+        ax[2].set_title(f'Masked Datacube, Band: {band_index + 1}')
+        
+        fig.canvas.draw_idle()
+
+    # ========== Button Callback Functions ==========
+    def on_add_button_click(event):
+        """Selects adding clouds to cloud mask."""
+        nonlocal paint_value
+        paint_value = 1
+
+    def on_erase_button_click(event):
+        """Selects erasing clouds to cloud mask."""
+        nonlocal paint_value
+        paint_value = 0
+
+    def on_toggle_paint_button_click(event):
+        """Toggles painting mode."""
+        nonlocal paint_mode
+        paint_mode = not paint_mode
+        toggle_paint_button.label.set_text(f'Turn Painting {'Off' if paint_mode else 'On'}')
+
+    # ========== Painting and Interaction Logic ==========
+    def paint(event):
+        """Paints a circular set of pixels based on brush size."""
+        if not paint_mode:
+            return
+        
+        if event.xdata is None or event.ydata is None:
+            return
+        
+        if not event.inaxes == ax[2]: # Masked datacube axes
+            return
+        
+        x, y = int(event.xdata), int(event.ydata)
+        x_min, x_max = max(0, x - brush_size), min(width - 1, x + brush_size)
+        y_min, y_max = max(0, y - brush_size), min(height - 1, y + brush_size)
+
+        yy, xx = np.ogrid[y_min:y_max, x_min:x_max]
+        distance = np.sqrt((yy - y) ** 2 + (xx - x) ** 2)
+
+        brush = distance <= brush_size
+        edited_mask[y_min:y_max, x_min:x_max][brush] = paint_value
+
+        update_mask()
+
+    def on_mouse_press(event):
+        """Draws/Erases on a mouse press when painting."""
+        nonlocal is_drawing
+
+        if paint_mode and event.button == 1: # left click
+            is_drawing = True
+            paint(event)
+    
+    def on_mouse_release(event):
+        """Stops drawing/erasing on a mouse release when painting."""
+        nonlocal is_drawing
+        is_drawing = False
+
+    def on_mouse_motion(event):
+        """Draws/Erases when the mouse is pressed + moving, displays a preview when painting."""
+        if event.inaxes == ax[2]:
+            if event.xdata is None or event.ydata is None:
+                return
+
+            if paint_mode:
+                brush_preview.center = (event.xdata, event.ydata)
+                brush_preview.set_visible(True)
+
+                if is_drawing:
+                    paint(event)
+                else:
+                    fig.canvas.draw_idle()
+        else:
+            brush_preview.set_visible(False)
+            fig.canvas.draw_idle()
+
+    # ========== Register Callbacks and Events ==========
+    band_slider.on_changed(update_band_slider)
+    brush_size_slider.on_changed(update_brush_size_slider)
+    toggle_paint_button.on_clicked(on_toggle_paint_button_click)
+    add_button.on_clicked(on_add_button_click)
+    erase_button.on_clicked(on_erase_button_click)
+
+    fig.canvas.mpl_connect('button_press_event', on_mouse_press)
+    fig.canvas.mpl_connect('button_release_event', on_mouse_release)
+    fig.canvas.mpl_connect('motion_notify_event', on_mouse_motion)
+
+    plt.subplots_adjust(left=0.1, right=0.9, bottom=0.4, wspace=0.5)
+    plt.show()
+
+    return edited_mask
