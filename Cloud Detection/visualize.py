@@ -3,7 +3,7 @@ from matplotlib.widgets import Button, Slider, TextBox
 import numpy as np
 
 from config import *
-from load_datacube import load_datacube
+from utility import load_datacube
 import cloud_detection
 
 def visualize_band(band: int):

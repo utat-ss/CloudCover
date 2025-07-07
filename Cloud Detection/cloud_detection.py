@@ -184,35 +184,6 @@ def measure_cloud_cover(cloud_mask: np.ndarray) -> float:
 
     return cloud_cover_ratio
 
-def apply_cloud_mask(radiance_data: np.ndarray, cloud_mask: np.ndarray) -> np.ndarray:
-    """
-    Applies a binary cloud mask to a hyperspectral datacube.
-
-    All pixels marked as cloud (mask == 1) are set to 0 across all spectral bands.
-
-    Parameters
-    ----------
-    radiance_data : np.ndarray
-        A hyperspectral datacube (3D numpy array w/ dimensions rows, columns,
-        bands).
-    cloud_mask : np.ndarray
-        A 2D binary mask (rows x cols) where cloud pixels are marked as 1.
-
-    Returns
-    -------
-    np.ndarray
-        A masked datacube of the same shape, with cloud pixels zeroed out.
-    """
-    num_rows, num_cols, _ = radiance_data.shape
-    masked_data = radiance_data.copy()
-
-    for row in range(num_rows):
-        for col in range(num_cols):
-            if cloud_mask[row, col] == 1:
-                masked_data[row, col, :] = 0
-
-    return masked_data
-
 def generate_texture_image(
     radiance_data: np.ndarray, band: int, window_size: int,
     levels: int, offset: int, angle: float
