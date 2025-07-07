@@ -2,7 +2,7 @@ import numpy as np
 
 from cloud_detection import *
 from config import *
-from utility import apply_cloud_mask, apply_cloud_mask_to_band, load_datacube
+from utility import apply_cloud_mask, load_datacube
 
 if __name__ == '__main__':
     # Initialization - Load data
