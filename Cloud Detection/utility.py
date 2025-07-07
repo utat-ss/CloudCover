@@ -65,13 +65,8 @@ def apply_cloud_mask(radiance_data: np.ndarray, cloud_mask: np.ndarray) -> np.nd
     np.ndarray
         A masked datacube of the same shape, with cloud pixels zeroed out.
     """
-    num_rows, num_cols, _ = radiance_data.shape
     masked_data = radiance_data.copy()
-
-    for row in range(num_rows):
-        for col in range(num_cols):
-            if cloud_mask[row, col] == 1:
-                masked_data[row, col, :] = 0
+    masked_data[cloud_mask == 1] = 0
 
     return masked_data
 
