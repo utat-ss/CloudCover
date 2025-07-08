@@ -6,7 +6,7 @@ from config import *
 from utility import load_datacube
 import cloud_detection
 
-def visualize_band(band: int):
+def visualize_band(band: int, datacube: np.ndarray = None):
     """
     Display a single spectral band from the datacube. The band is displayed as
     a grayscale image.
@@ -15,10 +15,16 @@ def visualize_band(band: int):
     ----------
     band : int
         The index of the band to visualize (0-indexed).
+    datacube : np.ndarray
+        The datacube to display, if one is not passed in, the configured datacube
+        will be loaded.
     """
-    radiance_data, _, _, _ = load_datacube(DATA_FOLDER + DATACUBE)
+    if datacube is None:
+        data, _, _, _ = load_datacube(DATA_FOLDER + DATACUBE)
+    else:
+        data = datacube
 
-    data_slice = radiance_data[:, :, band]
+    data_slice = data[:, :, band]
     max_value = np.max(data_slice)
 
     plt.imshow(data_slice, cmap='gray', vmin=0, vmax=max_value)
@@ -26,16 +32,25 @@ def visualize_band(band: int):
 
     plt.show()
 
-def visualize_cloud_mask():
-    """Displays the binary cloud mask as a grayscale image."""
-    cloud_mask = np.load(f'{OUTPUT_FOLDER}cloud_mask.npz')['mask']
+def visualize_cloud_mask(cloud_mask: np.ndarray = None):
+    """
+    Displays the binary cloud mask as a grayscale image.
+    
+    Parameters
+    ----------
+    cloud_mask : np.ndarray
+        The binary cloud mask to display, if one is not passed in, the final cloud
+        mask in the output folder will be used.
+    """
+    if cloud_mask is None:
+        cloud_mask = np.load(f'{OUTPUT_FOLDER}final_cloud_mask.npz')['mask']
 
     plt.imshow(cloud_mask, cmap='gray')
     plt.title('Cloud Mask')
 
     plt.show()
 
-def visualize_masked_band(band: int):
+def visualize_masked_band(band: int, masked_datacube: np.ndarray = None):
     """
     Displays a single spectral band from the masked datacube. The band is
     displayed as a grayscale image.
@@ -44,10 +59,16 @@ def visualize_masked_band(band: int):
     ----------
     band : int
         The index of the band to visualize (0-indexed).
+    masked_datacube : np.ndarray
+        The masked datacube to display, if one is not passed in, the masked
+        datacube in the output folder will be used.
     """
-    masked_radiance_data = np.load(f'{OUTPUT_FOLDER}masked_datacube.npz')['masked_datacube']
+    if masked_datacube is None:
+        masked_data = np.load(f'{OUTPUT_FOLDER}masked_datacube.npz')['masked_datacube']
+    else:
+        masked_data = masked_datacube
 
-    data_slice = masked_radiance_data[:, :, band]
+    data_slice = masked_data[:, :, band]
     max_value = np.max(data_slice)
 
     plt.imshow(data_slice, cmap='gray', vmin=0, vmax=max_value)
@@ -55,21 +76,53 @@ def visualize_masked_band(band: int):
 
     plt.show()
 
-def visualize_datacube_comparison():
+def visualize_datacube_comparison(
+    datacube: np.ndarray = None, masked_datacube: np.ndarray = None,
+    cloud_mask: np.ndarray = None, band_index: int = None, threshold: float = None
+):
     """
     Displays plots of the original datacube, cloud mask, and masked datacube.
 
     Image plots of the original and masked datacube for a given band, are
     displayed along with the cloud mask. The user can use the slider to switch
     between spectral bands to display.
+
+    Parameters
+    ----------
+    datacube : np.ndarray
+        The datacube to display, if one is not passed in, the configured datacube
+        will be loaded.
+    masked_datacube : np.ndarray
+        The masked datacube to display, if one is not passed in, the masked
+        datacube in the output folder will be used.
+    cloud_mask : np.ndarray
+        The binary cloud mask to display, if one is not passed in, the final cloud
+        mask in the output folder will be used.
+    band_index : int
+        The band index that the cloud mask is based off of (0-indexed), must be
+        specified if a cloud mask is passed in.
+    threshold : float
+        The threshold used to create the cloud mask, must be specified if a cloud
+        mask is passed in.
     """
     # Load data to display
-    radiance_data, _, _, _ = load_datacube(DATA_FOLDER + DATACUBE)
-    masked_radiance_data = np.load(f'{OUTPUT_FOLDER}masked_datacube.npz')['masked_datacube']
-    cloud_mask_data = np.load(f'{OUTPUT_FOLDER}cloud_mask.npz')
-    cloud_mask = cloud_mask_data['mask']
-    band_index = cloud_mask_data['band_index']
-    threshold = cloud_mask_data['threshold']
+    if datacube is None:
+        radiance_data, _, _, _ = load_datacube(DATA_FOLDER + DATACUBE)
+    else:
+        radiance_data = datacube
+
+    if masked_datacube is None:
+        masked_radiance_data = np.load(f'{OUTPUT_FOLDER}masked_datacube.npz')['masked_datacube']
+    else:
+        masked_radiance_data = masked_datacube
+
+    if cloud_mask is None and (band_index is None or threshold is None):
+        print('The band index and threshold used for masking must be specified')
+    else:
+        cloud_mask_data = np.load(f'{OUTPUT_FOLDER}final_cloud_mask.npz')
+        cloud_mask = cloud_mask_data['mask']
+        band_index = cloud_mask_data['band_index']
+        threshold = cloud_mask_data['threshold']
 
     fig, ax = plt.subplots(ncols=3)
     displayed_band = [0]
