@@ -99,13 +99,13 @@ def visualize_datacube_comparison(
         The binary cloud mask to display, if one is not passed in, the final cloud
         mask in the output folder will be used.
     band_index : int
-        The band index that the cloud mask is based off of (0-indexed), must be
+        The band index that the cloud mask is based off of (0-indexed), should be
         specified if a cloud mask is passed in.
     threshold : float
-        The threshold used to create the cloud mask, must be specified if a cloud
+        The threshold used to create the cloud mask, should be specified if a cloud
         mask is passed in.
     """
-    # Load data to display
+    # ========== Load Data to Display ==========
     if datacube is None:
         radiance_data, _, _, _ = load_datacube(DATA_FOLDER + DATACUBE)
     else:
@@ -116,22 +116,24 @@ def visualize_datacube_comparison(
     else:
         masked_radiance_data = masked_datacube
 
-    if cloud_mask is None and (band_index is None or threshold is None):
-        print('The band index and threshold used for masking must be specified')
-    else:
-        cloud_mask_data = np.load(f'{OUTPUT_FOLDER}final_cloud_mask.npz')
-        cloud_mask = cloud_mask_data['mask']
-        band_index = cloud_mask_data['band_index']
-        threshold = cloud_mask_data['threshold']
+    if cloud_mask is None:
+        cloud_mask = np.load(f'{OUTPUT_FOLDER}final_cloud_mask.npz')['mask']
+        cloud_core_mask_data = np.load(f'{OUTPUT_FOLDER}cloud_core_mask.npz')
+        band_index = cloud_core_mask_data['band_index']
+        threshold = cloud_core_mask_data['threshold']
+    elif cloud_mask is not None and (band_index is None or threshold is None):
+        print('The band index and threshold used for masking should be specified')
+        band_index = -1
+        threshold = -1
 
-    fig, ax = plt.subplots(ncols=3)
-    displayed_band = [0]
+    # ========== Set Up Figure and Axes ==========
+    fig, ax = plt.subplots(ncols=3, sharex=True, sharey=True)
+    displayed_band = 0
 
     # Display band
-    data_slice = radiance_data[:, :, displayed_band[0]]
-    max_value = np.max(data_slice)
-    original_im = ax[0].imshow(data_slice, cmap='gray', vmin=0, vmax=max_value)
-    ax[0].set_title(f'Original Data, Band: {displayed_band[0] + 1}')
+    data_slice = radiance_data[:, :, displayed_band]
+    original_im = ax[0].imshow(data_slice, cmap='gray', vmin=0, vmax=np.max(data_slice))
+    ax[0].set_title(f'Original Data, Band: {displayed_band + 1}')
 
     # Display mask
     ax[1].imshow(cloud_mask, cmap='gray')
@@ -145,35 +147,37 @@ def visualize_datacube_comparison(
     )
 
     # Display masked band
-    masked_data_slice = masked_radiance_data[:, :, displayed_band[0]]
-    masked_max_value = np.max(masked_data_slice)
-    masked_im = ax[2].imshow(masked_data_slice, cmap='gray', vmin=0, vmax=masked_max_value)
-    ax[2].set_title(f'Masked Data, Band: {displayed_band[0] + 1}')
+    masked_data_slice = masked_radiance_data[:, :, displayed_band]
+    masked_im = ax[2].imshow(masked_data_slice, cmap='gray', vmin=0, vmax=np.max(masked_data_slice))
+    ax[2].set_title(f'Masked Data, Band: {displayed_band + 1}')
 
+    # ========== Set up Slider Element ==========
     ax_band_slider = plt.axes([0.2, 0.1, 0.65, 0.03])
-    band_slider = Slider(ax_band_slider, 'Band Num', 1, NUM_BANDS, valinit=displayed_band[0] + 1, valstep=1)
+    band_slider = Slider(ax_band_slider, 'Band Num', 1, NUM_BANDS, valinit=displayed_band + 1, valstep=1)
 
-    # Function to update image and index when slider is moved
+    # ========== Slider Callback Function ==========
     def update(val):
-        displayed_band[0] = int(band_slider.val) - 1
+        """Updates images and index when the slider is moved."""
+        nonlocal displayed_band
+        displayed_band = int(band_slider.val) - 1
 
         # Update original band
-        new_data_slice = radiance_data[:, :, displayed_band[0]]
-        new_max_val = np.max(new_data_slice)
+        new_data_slice = radiance_data[:, :, displayed_band]
         original_im.set_data(new_data_slice)
-        original_im.set_clim(vmin=0, vmax=new_max_val)
-        ax[0].set_title(f'Original Data, Band: {displayed_band[0] + 1}')
+        original_im.set_clim(vmin=0, vmax=np.max(new_data_slice))
+        ax[0].set_title(f'Original Data, Band: {displayed_band + 1}')
 
         # Update masked band
-        new_masked_data_slice = masked_radiance_data[:, :, displayed_band[0]]
-        new_masked_max_val = np.max(new_masked_data_slice)
+        new_masked_data_slice = masked_radiance_data[:, :, displayed_band]
         masked_im.set_data(new_masked_data_slice)
-        masked_im.set_clim(vmin=0, vmax=new_masked_max_val)
-        ax[2].set_title(f'Masked Data, Band: {displayed_band[0] + 1}')
+        masked_im.set_clim(vmin=0, vmax=np.max(new_masked_data_slice))
+        ax[2].set_title(f'Masked Data, Band: {displayed_band + 1}')
 
         fig.canvas.draw_idle()
 
+    # ========== Register Slider Event ==========
     band_slider.on_changed(update)
+
     plt.subplots_adjust(left=0.1, right=0.9, bottom=0.25, wspace=0.5)
     plt.show()
 
