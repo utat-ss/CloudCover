@@ -21,13 +21,13 @@ if __name__ == '__main__':
     print(f'Step 2 done, threshold selected: {selected_threshold}')
 
     # Step 3 - Create cloud mask by thresholding selected band
-    cloud_mask = create_cloud_mask(radiance_data, selected_band, selected_threshold)
+    cloud_core_mask = create_cloud_mask(radiance_data, selected_band, selected_threshold)
     if SAVE_DATA:
-        np.savez_compressed(f'{OUTPUT_FOLDER}cloud_mask', mask = cloud_mask,
+        np.savez_compressed(f'{OUTPUT_FOLDER}cloud_core_mask', mask = cloud_core_mask,
                             band_index = np.array(selected_band),
                             threshold = np.array(selected_threshold)
         )
-    print('Step 3 done, cloud mask created')
+    print('Step 3 done, cloud core mask created')
 
     # Step 4 - Create texture image (to be used for rule-based object classifcation)
     texture_image = generate_texture_image(radiance_data, selected_band, config.GLCM_WINDOW_SIZE,
@@ -38,14 +38,14 @@ if __name__ == '__main__':
     print('Step 4 done, texture image generated')
 
     # Step 5 - Perform cloud margin classification w/ texture image
-    cloud_margin_mask = create_cloud_margin_mask(texture_image, cloud_mask)
+    cloud_margin_mask = create_cloud_margin_mask(texture_image, cloud_core_mask)
     if SAVE_DATA:
         np.savez_compressed(f'{OUTPUT_FOLDER}cloud_margin_mask', mask = cloud_margin_mask)
     print('Step 5 done, cloud margin mask created')
 
     # Step 6 - Merge cloud and cloud margin masks
-    final_cloud_mask = cloud_mask | cloud_margin_mask
-    cloud_cover_ratio = measure_cloud_cover(cloud_mask)
+    final_cloud_mask = cloud_core_mask | cloud_margin_mask
+    cloud_cover_ratio = measure_cloud_cover(final_cloud_mask)
     if SAVE_DATA:
         np.savez_compressed(f'{OUTPUT_FOLDER}final_cloud_mask', mask = final_cloud_mask)
     print(f'Step 6 done, total cloud cover: {(cloud_cover_ratio * 100):.2f}%')
