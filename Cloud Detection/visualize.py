@@ -22,6 +22,8 @@ def visualize_band(band: int):
     max_value = np.max(data_slice)
 
     plt.imshow(data_slice, cmap='gray', vmin=0, vmax=max_value)
+    plt.title(f'Band {band + 1}')
+
     plt.show()
 
 def visualize_cloud_mask():
@@ -29,6 +31,8 @@ def visualize_cloud_mask():
     cloud_mask = np.load(f'{OUTPUT_FOLDER}cloud_mask.npz')['mask']
 
     plt.imshow(cloud_mask, cmap='gray')
+    plt.title('Cloud Mask')
+
     plt.show()
 
 def visualize_masked_band(band: int):
@@ -47,6 +51,8 @@ def visualize_masked_band(band: int):
     max_value = np.max(data_slice)
 
     plt.imshow(data_slice, cmap='gray', vmin=0, vmax=max_value)
+    plt.title(f'Band {band + 1}')
+
     plt.show()
 
 def visualize_datacube_comparison():
