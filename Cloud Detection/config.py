@@ -4,6 +4,8 @@ OUTPUT_FOLDER = 'Cloud Detection/data_output/'
 SAVE_DATA = False
 SAVE_PLOTS = False
 
+USE_INTERACTIVE_THRESHOLDING = True
+
 # Datacube Specifications
 DATACUBE = '59-vigo-radiance-small.npy'
 NUM_ROWS = 956
