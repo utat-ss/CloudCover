@@ -2,7 +2,9 @@ import numpy as np
 
 import config
 
-def load_datacube(datacube_filepath, wavelength_filepath = None):
+def load_datacube(
+    datacube_filepath: str, wavelength_filepath: str = None
+) -> tuple[np.ndarray, tuple[int, int, float], np.ndarray, float]:
     """
     Load a hyperspectral datacube and its associated wavelengths.
 
@@ -15,7 +17,6 @@ def load_datacube(datacube_filepath, wavelength_filepath = None):
     ----------
     datacube_filepath : str
         Path to the hyperspectral datacube file (.npy or .npz format)
-
     wavelength_filepath : str, optional
         Path to a text file containing the wavelength centres. If not provided,
         wavelengths are generated linearly.
