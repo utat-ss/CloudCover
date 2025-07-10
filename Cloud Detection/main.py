@@ -48,8 +48,9 @@ if __name__ == '__main__':
         np.savez_compressed(f'{OUTPUT_FOLDER}cloud_margin_mask', mask = cloud_margin_mask)
     print('Step 5 done, cloud margin mask created')
 
-    # Step 6 - Merge cloud and cloud margin masks
-    final_cloud_mask = cloud_core_mask | cloud_margin_mask
+    # Step 6 - Manually refine cloud mask
+    final_cloud_mask = cloud_core_mask | cloud_margin_mask # Merge cloud and cloud margin masks
+    final_cloud_mask = perform_manual_refinement(radiance_data, final_cloud_mask)
     cloud_cover_ratio = measure_cloud_cover(final_cloud_mask)
     if SAVE_DATA:
         np.savez_compressed(f'{OUTPUT_FOLDER}final_cloud_mask', mask = final_cloud_mask)
