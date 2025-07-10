@@ -29,6 +29,9 @@ def visualize_band(band: int, datacube: np.ndarray = None):
     plt.imshow(data_slice, cmap='gray', vmin=0, vmax=max_value)
     plt.title(f'Band {band + 1}')
 
+    if SAVE_PLOTS:
+        plt.savefig(f'{PLOT_FOLDER}datacube_band_{band + 1}.png')
+
     plt.show()
 
 def visualize_cloud_mask(cloud_mask: np.ndarray = None):
@@ -46,6 +49,9 @@ def visualize_cloud_mask(cloud_mask: np.ndarray = None):
 
     plt.imshow(cloud_mask, cmap='gray')
     plt.title('Cloud Mask')
+
+    if SAVE_PLOTS:
+        plt.savefig(f'{PLOT_FOLDER}cloud_mask.png')
 
     plt.show()
 
@@ -73,7 +79,11 @@ def visualize_masked_band(band: int, masked_datacube: np.ndarray = None):
     plt.imshow(data_slice, cmap='gray', vmin=0, vmax=max_value)
     plt.title(f'Band {band + 1}')
 
+    if SAVE_PLOTS:
+        plt.savefig(f'{PLOT_FOLDER}masked_datacube_band_{band + 1}.png')
+
     plt.show()
+
 
 def visualize_datacube_comparison(
     datacube: np.ndarray = None, masked_datacube: np.ndarray = None,
@@ -179,6 +189,9 @@ def visualize_datacube_comparison(
 
     plt.subplots_adjust(left=0.1, right=0.9, bottom=0.25, wspace=0.5)
     plt.show()
+
+    if SAVE_PLOTS:
+        fig.savefig(f'{PLOT_FOLDER}datacube_comparison.png')
 
 if __name__ == '__main__':
     visualize_datacube_comparison()

@@ -1,5 +1,6 @@
 DATA_FOLDER = 'Cloud Detection/data/'
 OUTPUT_FOLDER = 'Cloud Detection/data_output/'
+PLOT_FOLDER = OUTPUT_FOLDER + 'plots/'
 
 SAVE_DATA = False
 SAVE_PLOTS = False
