@@ -526,9 +526,16 @@ def perform_manual_refinement(radiance_data: np.ndarray, cloud_mask: np.ndarray)
     erase_button = Button(ax_erase_button, 'Erase Cloud')
 
     # ========== Set Up Brush Preview ==========
-    brush_preview = Circle((0, 0), radius=brush_size, edgecolor='red', facecolor='none', linewidth=1.5, linestyle='--')
-    ax[2].add_patch(brush_preview)
-    brush_preview.set_visible(False)
+    brush_previews = [plt.Circle((0, 0), radius=brush_size, edgecolor='red', facecolor='none', linewidth=1.5, linestyle='--') for _ in ax]
+    for i, preview in enumerate(brush_previews):
+        ax[i].add_patch(preview)
+        preview.set_visible(False)
+
+    # ========== Helper Function for Painting ==========
+    def is_toolbar_active():
+        """Checks if a tool in the matplotlib toolbar is being used."""
+        toolbar = getattr(fig.canvas.manager, 'toolbar', None)
+        return toolbar is not None and toolbar.mode in ['zoom rect', 'pan/zoom']
 
     # ========== Slider and UI Callback Functions ==========
     def update_band_slider(val):
@@ -553,8 +560,10 @@ def perform_manual_refinement(radiance_data: np.ndarray, cloud_mask: np.ndarray)
     def update_brush_size_slider(val):
         """Updates brush size when brush size slider is moved."""
         nonlocal brush_size
+
         brush_size = int(brush_size_slider.val)
-        brush_preview.set_radius(brush_size)
+        for preview in brush_previews:
+            preview.set_radius(brush_size)
 
     def update_mask():
         """Updates cloud mask and masked datacube when painting."""
@@ -595,8 +604,8 @@ def perform_manual_refinement(radiance_data: np.ndarray, cloud_mask: np.ndarray)
         if event.xdata is None or event.ydata is None:
             return
         
-        if not event.inaxes == ax[2]: # Masked datacube axes
-            return
+        # if not event.inaxes == ax[2]: # Masked datacube axes
+        #     return
         
         x, y = int(event.xdata), int(event.ydata)
         x_min, x_max = max(0, x - brush_size), min(width - 1, x + brush_size)
@@ -614,7 +623,7 @@ def perform_manual_refinement(radiance_data: np.ndarray, cloud_mask: np.ndarray)
         """Draws/Erases on a mouse press when painting."""
         nonlocal is_drawing
 
-        if paint_mode and event.button == 1: # left click
+        if not is_toolbar_active() and paint_mode and event.button == 1: # left click
             is_drawing = True
             paint(event)
     
@@ -625,11 +634,16 @@ def perform_manual_refinement(radiance_data: np.ndarray, cloud_mask: np.ndarray)
 
     def on_mouse_motion(event):
         """Draws/Erases when the mouse is pressed + moving, displays a preview when painting."""
-        if event.inaxes == ax[2]:
+        if event.inaxes in ax and not is_toolbar_active():
             if event.xdata is None or event.ydata is None:
                 return
 
             if paint_mode:
+                for preview in brush_previews:
+                    preview.set_visible(False)
+                
+                index = list(ax).index(event.inaxes)
+                brush_preview = brush_previews[index]
                 brush_preview.center = (event.xdata, event.ydata)
                 brush_preview.set_visible(True)
 
@@ -638,7 +652,9 @@ def perform_manual_refinement(radiance_data: np.ndarray, cloud_mask: np.ndarray)
                 else:
                     fig.canvas.draw_idle()
         else:
-            brush_preview.set_visible(False)
+            for preview in brush_previews:
+                    preview.set_visible(False)
+
             fig.canvas.draw_idle()
 
     # ========== Register Callbacks and Events ==========
