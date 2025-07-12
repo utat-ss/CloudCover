@@ -1,3 +1,63 @@
+"""
+Cloud Detection Algorithm for Hyperspectral Images
+
+This script detects clouds in hyperspectral data by selecting a spectral band
+and threshold value to create an initial cloud mask. It then generates a texture
+image from the same band and performs rule-based classification with the initial
+mask to identify cloud margins. Manual refinement of the combined mask is used
+to improve the final result.
+
+Key Steps:
+1. Select a spectral band for the core cloud mask
+    - Bands with high contrast between clouds and other land cover types work best.
+
+2. Select a threshold value to apply to the selected band
+    - Threshold separates cloud pixels from clear-sky pixels.
+
+3. Create the core cloud mask using thresholding
+    - Produces a binary mask where pixels above threshold are marked as cloud.
+
+4. Generate a texture image from selected spectral band
+    - Pads the input image using reflectance.
+    - Uses a sliding window to create a grey-level co-occurrence matrix (GLCM)
+      at every pixel in input image.
+    - Computes the variance of each GLCM to highlight texture differences.
+
+5. Perform rule-based object classification to detect cloud margins
+    - Classifies cloud margins using texture image and initial cloud mask.
+    - Thresholds the texture image using Otsu's method to find high-variation areas.
+    - Labels connected components in thresholded image.
+    - Filters out small regions based on a minimum area.
+    - Dilates initial cloud mask and retains only texture regions that overlap with it.
+    - Applies morphological closing to smooth and clean final margin mask
+
+6. Manually refine the combined cloud mask
+    - Launches an interactive tool enabling user to add or remove cloud pixels.
+
+
+Optional Steps:
+- Apply Mask to Datacube
+    - Applies a cloud mask to a datacube by setting all cloud pixels to 0.
+
+- Quantify Cloud Coverage in an Image
+    - Calculates the ratio of cloud pixels to total pixels in the image.
+
+Outputs:
+    - Binary 2D cloud core mask
+    - Binary 2D cloud margin mask
+    - Binary 2D final cloud mask
+    - Texture image
+    - Datacube with final cloud mask applied
+
+Notes:
+- Settings (e.g. GLCM parameters, data saving, datacube selection) are managed in `config.py`.
+- Steps 1 and 2 can run interactively, controlled by `USE_INTERACTIVE_THRESHOLDING` in config.py
+    - Interactive mode selects band and threshold value together (may run slower)
+    - If not using interactive mode, default values can be set to skip these steps.
+
+Usage:
+- Run `main.py` and follow the on-screen prompts to perform each of the steps outlined above.
+"""
 import numpy as np
 
 from cloud_detection import *

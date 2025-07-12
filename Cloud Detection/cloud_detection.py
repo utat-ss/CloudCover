@@ -75,9 +75,12 @@ def select_spectral_band(radiance_data: np.ndarray) -> int:
 
 def select_threshold(radiance_data: np.ndarray, band: int) -> float:
     """
-    Displays a slice of a datacube at the specified spectral band and allows
-    the user to click on a pixel to select a threshold value.
+    Displays a slice of a datacube at the specified spectral band and allows the
+    user to select a threshold value.
 
+    The threshold can be set by either entering a value in the textbox or by
+    clicking on a pixel in the image, which uses that pixel' value as the threshold. 
+    
     Parameters
     ----------
     radiance_data : np.ndarray
@@ -329,7 +332,7 @@ def measure_cloud_cover(cloud_mask: np.ndarray) -> float:
     Returns
     -------
     float
-        The fraction o fpixels in the image that are classified as clouds.
+        The fraction of pixels in the image that are classified as clouds.
     """
     num_cloud_pixels = np.sum(cloud_mask)
     num_total_pixels = cloud_mask.size
@@ -343,7 +346,7 @@ def generate_texture_image(
 ) -> np.ndarray:
     """
     Generates a texture image based on 2nd-order varince using the Grey-Level
-    Co-Occurance Matrix (GLCM) for a given hyperspectral band.
+    Co-Occurrence Matrix (GLCM) for a given hyperspectral band.
 
     This function computes the local texture variance by sliding a window across
     the image, calculating the GLCM within each window, and calculating the
@@ -414,9 +417,15 @@ def create_cloud_margin_mask(
     Creates a binary mask of cloud margins using local texture variations and
     an existing cloud mask.
 
-    This function uses rule-based object classification to detect cloud margins
-    from a texture image (e.g. derived from GLCM variance). Pixels with value
-    1 are identified as cloud margins, and 0 as clear areas.
+    This function applies rule-based object classification to a texture image
+    (e.g. derived from GLCM variance) to identify cloud margins. Output pixels
+    are labelled as 1 for cloud margins and 0 for clear areas.
+
+    The process involves:
+    1. Segmenting the texture image.
+    2. Filtering out small regions by area
+    3. Classifying remaining regions as cloud margins if they are near core clouds,
+       determined by dilating the core cloud mask and checking for overlap.
 
     Parameters
     ----------
@@ -465,7 +474,10 @@ def perform_manual_refinement(radiance_data: np.ndarray, cloud_mask: np.ndarray)
 
     This function allows the user to inspect and edit a binary cloud mask by
     painting directly on the mask. Cloud pixels can be added or removed using
-    a brush tool directly on the masked image.
+    a brush tool directly on the masked image. Different brush sizes are available,
+    and the user can paint on any of the three plots.
+
+    Note: To paint, all matplotlib tools (e.g. pan, zoom) must be deselected.
 
     Parameters
     ----------

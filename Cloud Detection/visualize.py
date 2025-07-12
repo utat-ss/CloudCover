@@ -84,7 +84,6 @@ def visualize_masked_band(band: int, masked_datacube: np.ndarray = None):
 
     plt.show()
 
-
 def visualize_datacube_comparison(
     datacube: np.ndarray = None, masked_datacube: np.ndarray = None,
     cloud_mask: np.ndarray = None, band_index: int = None, threshold: float = None
